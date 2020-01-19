@@ -1,0 +1,77 @@
+大文件拆分合并
+ //文件重组
+    private static void combine(List<String> fileList, String combinePath){
+        try (
+                FileOutputStream out = new FileOutputStream(combinePath)
+                ){
+            byte[] data = new byte[1024 << 4];
+            for(String fn : fileList){
+                RandomAccessFile raf = new RandomAccessFile(fn, "r");
+                int rest = (int)(raf.length()%(1024 << 4));
+                while(raf.read(data) != -1){
+                    out.write(data);
+                    if(raf.getFilePointer() == raf.length() - rest){
+                        byte[] restData = new byte[rest];
+                        raf.read(restData);
+                        out.write(restData);
+                    }
+                }
+                raf.close();
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    //文件切片
+    private static void split(String filepath, int n) throws IOException {
+        File file = new File(filepath);
+        try(
+            RandomAccessFile raf = new RandomAccessFile(file, "r")
+            ){
+            long size = file.length();
+            long step = size/n;
+            byte[] data = new byte[1024 << 4];
+            for(int i = 0; i < n; i ++){
+                long start = i * step;
+                long end = (i != n-1) ? (i+1)*step : size;
+                int rest = (int)((end-start)%(1024 << 4));
+                FileOutputStream out = new FileOutputStream(filepath+i);
+                raf.seek(start);
+                while(raf.read(data) != -1){
+                    out.write(data);
+                    if(raf.getFilePointer() == end - rest){
+                        byte[] restData = new byte[rest];
+                        raf.read(restData);
+                        out.write(restData);
+                        break;
+                    }
+                }
+                out.close();
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    //插入内容
+    private static void insert(String fileName,long pos,String content) throws IOException{
+        //创建临时空文件
+        File tempFile = File.createTempFile("temp",null);
+        //在虚拟机终止时，请求删除此抽象路径名表示的文件或目录
+        tempFile.deleteOnExit();
+        FileOutputStream fos = new FileOutputStream(tempFile);
+        RandomAccessFile raf = new RandomAccessFile(fileName,"rw");
+        raf.seek(pos);
+        byte[] buffer = new byte[4];
+        int num = 0;
+        while(-1 != (num = raf.read(buffer))) {
+            fos.write(buffer,0,num);
+        }
+        raf.seek(pos);
+        raf.write(content.getBytes());
+        FileInputStream fis = new FileInputStream(tempFile);
+        while(-1 != (num = fis.read(buffer))){
+            raf.write(buffer,0,num);
+        }
+    }
